@@ -1,0 +1,400 @@
+#include <SPI.h>     
+#include <SD.h>         
+ 
+File myFile;
+String okunan="";// txt dosyadan alinan metnin tutuldugu string
+int buttonPow=9; // button'lar icin gerkli olan guc 
+int button[]={8,7,6,5,4,3,2}; // buttonların yerlerinin tutuldugu array
+boolean buttonState[7]={false,false,false,false,false,false,false};
+int uyari_led=A0; // yesil led , buttonlra tıklandıktan sonra  beklenmesi gereken sureyi gosterir
+int error_led=A1; // kırmızı led , olasılıksal olarak olusan hatayı yanarak gosterir
+int key=0; // dosya_oku() fonksiyonunda kullanilir
+int tutar=0;
+int kalan =0;
+int yuklenen=0;
+boolean uygulama_durum[4]={true,false,false};
+
+int para_adet[]={0,0,0,0,0};   //5,10,20,50,100 adet sayısı  // kasada bulunan para sayısı tutulur 
+int para_yuklenen[]={0,0,0,0,0}; // islem sırasinda yuklenen para array
+int islem_istenen[]={0,0,0,0,0}; // istenilen islemlerin tutuldugu array
+
+struct islem{
+  int hizmetId;
+  String hizmetAd;
+  int hizmetAdet;
+  int hizmetFiyat;
+};
+
+// islem adeti kader struct olusturulur
+struct islem hizmet[4];
+
+// metin bilgi oku
+void dosya_oku(){
+  key=0;
+  while(key==0){
+    
+   myFile = SD.open("Text.txt",FILE_READ); // LRT.txt adlı bir dosya üzerine veri yazılmak üzere oluşturulup açılıyor.
+    myFile.seek(0); // 1 ile başlayan satırın ilk karakterine ait imleç pozisyonu okuma işlemi buradan başlayacak.
+    while (myFile.available()) 
+    {
+       okunan += (char)myFile.read(); // karakterler tek tek dizi değişkene sırayla aktarılıyor 
+    }
+
+    String metin_dizi[5];
+
+    int len =okunan.length() + 1;
+    char char_array[len];
+    okunan.toCharArray(char_array, len);
+
+    char* e = strtok(char_array, "\n");
+    metin_dizi[0]=e;
+    for(int i=0;i<4;i++){
+     e = strtok(NULL, "\n");
+     metin_dizi[i+1]=e;
+    }
+
+    String metin ="";
+    int deger = 0;
+    metin_dizi[0].toCharArray(char_array, len);
+    char* d = strtok(char_array, ",");
+    metin=d;
+    deger = metin.toInt();
+    para_adet[0]=deger;  //
+    for(int i=0;i<4;i++){// kasaya para girisi yapilir 
+      d = strtok(NULL, ",");
+      metin=d;
+      deger = metin.toInt();
+      para_adet[i+1]=deger;
+    }
+      //islem ozellikleri ve degerleri atanir
+     for(int i=0;i<4;i++){
+      metin_dizi[i+1].toCharArray(char_array, len);
+      d = strtok(char_array, ",");
+      metin=d;
+      deger = metin.toInt();
+      hizmet[i].hizmetId=deger;
+      
+      d = strtok(NULL, ",");
+      metin=d;
+      hizmet[i].hizmetAd=metin;
+      
+      d = strtok(NULL, ",");
+      metin=d;
+      deger = metin.toInt();
+      hizmet[i].hizmetAdet=deger;
+      
+      d = strtok(NULL, " ");
+      metin=d;
+      deger = metin.toInt();
+      hizmet[i].hizmetFiyat=deger;
+    }
+    
+    myFile.close(); // dosya kapatılıyor
+    digitalWrite(buttonPow,HIGH);
+
+   key++;
+  
+  }
+}
+
+//reset tusuna bastıktan sonra kullanılan ve verilerin  
+void reset(){
+  for(int i=0;i<5;i++){
+    islem_istenen[i]=0;
+  }
+  for(int i=0;i<5;i++){
+    para_yuklenen[i]=0;
+  }
+  uygulama_durum[0]=true;
+  uygulama_durum[1]=false;
+  uygulama_durum[1]=false;
+
+dosya_oku();
+
+}
+
+// para yuklemeisleminin yapildigi yer
+void para_yukleme(){
+      buttonState[0]=digitalRead(button[0]);
+      buttonState[1]=digitalRead(button[1]);
+      buttonState[2]=digitalRead(button[2]);
+      buttonState[3]=digitalRead(button[3]);
+      buttonState[5]=digitalRead(button[5]);
+      buttonState[4]=digitalRead(button[4]);
+      buttonState[6]=digitalRead(button[6]);
+      // 5 tl ekleme
+      if(buttonState[0]==1){
+      para_yuklenen[0]+=1;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // 10 tl ekleme
+      if(buttonState[1]==1){
+      para_yuklenen[1]+=1;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // 20 tl ekleme
+      if(buttonState[2]==1){
+      para_yuklenen[2]+=1;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // 50 tl ekleme
+      if(buttonState[3]==1){
+      para_yuklenen[3]+=1;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // 100 tl ekleme
+      if(buttonState[4]==1){
+      para_yuklenen[4]+=1;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // bitis
+      if(buttonState[5]==1){
+        yuklenen =para_yuklenen[4]*100+para_yuklenen[3]*50+para_yuklenen[2]*20+para_yuklenen[1]*10+para_yuklenen[0]*5;
+        Serial.print("Yuklenen para miktari = ");
+        Serial.print(yuklenen);
+        Serial.println();
+        delay(500);
+        uygulama_durum[0]=false;
+        uygulama_durum[1]=true;
+        Serial.println("Islem seciniz");
+      }
+      //reset
+      if(buttonState[6]==1){
+        reset();
+        Serial.print(" reset ");
+        Serial.println();
+        digitalWrite(uyari_led,HIGH);
+        delay(500);
+        uygulama_durum[0]=true;
+        uygulama_durum[1]=false;
+      }
+      
+      digitalWrite(uyari_led,LOW);
+}
+//istenilen islemlerin secldigi fonksiyon
+void islem_secimi(){
+      buttonState[0]=digitalRead(button[0]);
+      buttonState[1]=digitalRead(button[1]);
+      buttonState[2]=digitalRead(button[2]);
+      buttonState[3]=digitalRead(button[3]);
+      buttonState[5]=digitalRead(button[5]);
+      buttonState[4]=digitalRead(button[4]);
+      buttonState[6]=digitalRead(button[6]);
+      // kopukleme ekle
+      if(buttonState[0]==1){
+      islem_istenen[0]+=1;
+      hizmet[0].hizmetAdet--;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      //yıkama ekle
+      if(buttonState[1]==1){
+      islem_istenen[1]+=1;
+      hizmet[1].hizmetAdet--;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      // kurulama ekle
+      if(buttonState[2]==1){
+      islem_istenen[2]+=1;
+      hizmet[2].hizmetAdet--;
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      }
+      //cilalama ekle
+      if(buttonState[3]==1){
+      islem_istenen[3]+=1;
+      hizmet[3].hizmetAdet--;
+      digitalWrite(uyari_led,HIGH);
+      delay(1000);
+      }
+
+      if(buttonState[4]==1){
+      }
+      
+      //bitis
+      if(buttonState[5]==1){
+      tutar = islem_istenen[0]*hizmet[0].hizmetFiyat+islem_istenen[1]*hizmet[1].hizmetFiyat+islem_istenen[2]*hizmet[2].hizmetFiyat+islem_istenen[3]*hizmet[3].hizmetFiyat;
+      Serial.print("tutar = ");
+      Serial.print(tutar);
+      Serial.println();
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      uygulama_durum[1]=false;
+      uygulama_durum[2]=true;
+      }
+      //reset
+      if(buttonState[6]==1){
+        reset();
+        Serial.print(" reset ");
+        Serial.println();
+        digitalWrite(uyari_led,HIGH);
+        delay(500);
+        uygulama_durum[0]=true;
+        uygulama_durum[1]=false;
+      }      
+      digitalWrite(uyari_led,LOW);
+}
+
+ 
+void setup() {
+
+pinMode(buttonPow,OUTPUT);
+pinMode(uyari_led,OUTPUT);
+for(int i=0;i<7;i++){
+  pinMode(button[i],INPUT);
+}
+Serial.begin(9600); 
+
+  Serial.println("SD kart hazirlaniyor...");
+  if(!SD.begin(10)) //SD kart takılı değilse
+  {
+    Serial.println("SD kart takili degil!!!");
+    Serial.println("Lutfen SD kartinizi takiniz!!!");
+    while(!SD.begin(10)); // kart takılana kadar beklenir
+    Serial.println("SD kart kullanima hazir!!!"); // kart takılınca program devam eder
+    delay(1000); // 1 saniye isteğe bağlı bekleme 
+  }
+  else
+  {
+    Serial.println("SD kart kullanima hazir!!!"); // kart takılı ise program devam eder
+    delay(1000); // 1 saniye isteğe bağlı bekleme
+  }
+  
+}
+
+ 
+void loop() {
+
+  while(key==0){
+    
+   dosya_oku();
+   key++;
+   Serial.println("Para yuklemesi yapiniz");
+  
+  }
+    // para alma islemi yapilir
+    while(uygulama_durum[0]){
+       para_yukleme();
+    }
+    // yapilacak islem secimi yapilir
+    while(uygulama_durum[1]){
+     islem_secimi();
+     kalan=yuklenen-tutar;
+    }
+    // karsilastirmalar yapilir ve sonuc cikarilir
+    while(uygulama_durum[2]){
+    int deger = millis()%4+1;
+
+  int nakit[6]={0,0,0,0,0,0};// 5 10 20 50 100 key 
+  
+  for(int i=0;i<5;i++){// islem kolayligi yuklenen para kasaya atilir
+    para_adet[i]=para_adet[i]+para_yuklenen[i];
+    para_yuklenen[i]=0;
+  }
+
+   //para ustu duzenleme
+ while(kalan>0 && nakit[5]==0){
+    
+    while(para_adet[4]>0 && kalan>=100){
+      kalan-=100;
+      para_adet[4]--;
+      nakit[4]++;
+    }
+    while(para_adet[3]>0 && kalan>=50){
+      kalan-=50;
+      para_adet[3]--;
+      nakit[3]++;
+    }
+    while(para_adet[2]>0 && kalan>=20){
+      kalan-=20;
+      para_adet[2]--;
+      nakit[2]++;
+    }
+    while(para_adet[1]>0 && kalan>=10){
+      kalan-=10;
+      para_adet[1]--;
+      nakit[1]++;
+    }
+    while(para_adet[0]>0 && kalan>=5){
+      kalan-=5;
+      para_adet[0]--;
+      nakit[0]++;
+    }
+    if(kalan==0){// para ustunun hatasiz erilmesini kontrol eder
+     nakit[5]=2; 
+    }
+    if( kalan>0){// hata oldugu durumda islemi iptal eder
+      nakit[5]=1;
+    }
+  }
+  
+    if(deger==2 ){// random 2 degeri kontrolu yapilir
+        Serial.println("Ariza oldu islem iptal edildi");
+        Serial.println("Yeni islem");
+        reset();
+        digitalWrite(error_led,HIGH);
+        delay(500);
+        uygulama_durum[0]=true;
+        uygulama_durum[2]=false; 
+        
+    }else if(yuklenen<tutar){// eksik para kontrolu
+      Serial.println("hatali para girisi. islemler IPTAL EDILDI");
+      reset();
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      uygulama_durum[0]=true;
+      uygulama_durum[2]=false;
+    }else if(nakit[5]==1){//yeterli kagıt paranin kontrolu
+      Serial.print("kasada yeterli para yok islem iptal");
+      Serial.println();
+      reset();
+      digitalWrite(uyari_led,HIGH);
+      delay(500);
+      uygulama_durum[0]=true;
+      uygulama_durum[2]=false;
+    }else if(nakit[5]==2){// para ustu ekrana yazilmasi
+      Serial.println("para ustu ");
+      Serial.print(" bes = ");
+      Serial.println(nakit[0]);
+      Serial.print(" on = ");
+      Serial.println(nakit[1]);
+      Serial.print(" yirmi = ");
+      Serial.println(nakit[2]);
+      Serial.print(" elli = ");
+      Serial.println(nakit[3]);
+      Serial.print(" yuz = ");
+      Serial.println(nakit[4]);
+      uygulama_durum[2]=false;
+    }
+    
+      digitalWrite(error_led,LOW);    
+    }
+
+
+    //islem biitikten sonra reset tusuna basilip tekrardan yeni bir islem yapilmasi icin
+    buttonState[6]=digitalRead(button[6]);
+
+    if(buttonState[6]==1){
+        reset();
+        Serial.println(" reset ");
+        digitalWrite(uyari_led,HIGH);
+        delay(500);
+        uygulama_durum[0]=true;
+        uygulama_durum[1]=false;
+      } 
+       if(uygulama_durum[0]==false && uygulama_durum[1]==false&& uygulama_durum[2]==false){
+        reset();
+        Serial.println("Tekrardan islem yapabilirsiniz");
+        digitalWrite(uyari_led,HIGH);
+        delay(500);
+        uygulama_durum[0]=true;
+        uygulama_durum[1]=false;
+      } 
+
+}
